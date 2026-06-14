@@ -1,0 +1,45 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: pkm
+      POSTGRES_PASSWORD: pkm
+      POSTGRES_DB: pkm
+    ports:
+      - "5432:5432"
+    volumes:
+      - pkm_pgdata:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pkm -d pkm"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PKM_DATABASE_URL: postgresql://pkm:pkm@db:5432/pkm
+      PKM_VAULT_DIR: /data/vault
+      PKM_API_TOKEN: dev-local-token-change-me
+      PKM_EMBEDDER: ollama
+      PKM_OLLAMA_URL: http://192.168.1.144:11434
+      PKM_EMBED_MODEL: nomic-embed-text
+      PKM_EMBED_DIM: "768"
+    ports:
+      - "8000:8000"
+    volumes:
+      - pkm_vault:/data/vault
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  pkm_pgdata:
+  pkm_vault:
+
+# Ollama runs on the HOST (not containerized) so it can use Mac GPU/Metal:
+#   ollama serve  &&  ollama pull nomic-embed-text
+# The backend reaches it via host.docker.internal:11434.

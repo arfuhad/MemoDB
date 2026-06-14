@@ -1,0 +1,23 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+backend/.env
+
+# Vault (local data — never commit your notes)
+backend/vault/
+data/
+
+# Flutter
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/build/
+app/.idea/
+app/*.iml
+app/ios/Pods/
+app/android/.gradle/
+
+# OS
+.DS_Store
