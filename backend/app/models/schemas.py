@@ -66,3 +66,25 @@ class HealthResponse(BaseModel):
 class RebuildResponse(BaseModel):
     documents_indexed: int
     chunks_embedded: int
+
+class AppConfig(BaseModel):
+    title_provider: str
+    title_model: str
+    title_api_url: str
+    title_api_key: str
+    embedder: str
+    api_embed_url: str
+    api_embed_key: str
+    api_embed_model: str
+    ollama_url: str
+
+class AppConfigUpdate(BaseModel):
+    title_provider: str | None = None
+    title_model: str | None = None
+    title_api_url: str | None = None
+    title_api_key: str | None = None
+    embedder: str | None = None
+    api_embed_url: str | None = None
+    api_embed_key: str | None = None
+    api_embed_model: str | None = None
+    ollama_url: str | None = None

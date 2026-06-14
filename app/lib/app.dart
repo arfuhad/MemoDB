@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/providers.dart';
 import 'core/theme.dart';
 import 'features/capture/capture_screen.dart';
+import 'features/profile/profile_dialog.dart';
 import 'features/notes/notes_screen.dart';
 import 'features/search/search_screen.dart';
 
@@ -126,7 +127,7 @@ class _MarginHeader extends ConsumerWidget {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () {},
+          onTap: () => showProfileDialog(context),
           child: Container(
             width: 32,
             height: 32,

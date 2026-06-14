@@ -17,7 +17,19 @@ def init_services(settings: Settings) -> None:
     global _vault, _embedder, _title_gen
     _vault = Vault(settings.vault_dir)
     _embedder = make_embedder(settings)
-    _title_gen = TitleGenerator(settings.title_model, settings.ollama_url)
+    if settings.title_provider == "api":
+        _title_gen = TitleGenerator(
+            provider="api",
+            model=settings.title_model,
+            base_url=settings.title_api_url,
+            api_key=settings.title_api_key,
+        )
+    else:
+        _title_gen = TitleGenerator(
+            provider="ollama",
+            model=settings.title_model,
+            base_url=settings.ollama_url,
+        )
 
 
 def get_vault() -> Vault:

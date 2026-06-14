@@ -17,6 +17,8 @@ from ..models.schemas import (
     RebuildResponse,
     SearchHit,
     SearchResponse,
+    AppConfig,
+    AppConfigUpdate,
 )
 from ..services import retrieval
 
@@ -172,3 +174,50 @@ async def delete_document(doc_id: str) -> None:
 async def rebuild() -> RebuildResponse:
     docs, embedded = await get_indexer().rebuild()
     return RebuildResponse(documents_indexed=docs, chunks_embedded=embedded)
+
+
+@api.get("/config", response_model=AppConfig)
+async def get_app_config() -> AppConfig:
+    s = get_settings()
+    return AppConfig(
+        title_provider=s.title_provider,
+        title_model=s.title_model,
+        title_api_url=s.title_api_url,
+        title_api_key=s.title_api_key,
+        embedder=s.embedder,
+        api_embed_url=s.api_embed_url,
+        api_embed_key=s.api_embed_key,
+        api_embed_model=s.api_embed_model,
+        ollama_url=s.ollama_url,
+    )
+
+@api.put("/config", response_model=AppConfig)
+async def update_app_config(req: AppConfigUpdate) -> AppConfig:
+    from pathlib import Path
+    import json
+    from ..deps import init_services
+    from ..config import get_settings
+    
+    # Save updates to vault_dir/settings.json
+    s = get_settings()
+    settings_file = s.vault_dir / "settings.json"
+    
+    # Merge with existing overrides if any
+    existing = {}
+    if settings_file.exists():
+        try:
+            existing = json.loads(settings_file.read_text())
+        except Exception:
+            pass
+            
+    updates = req.model_dump(exclude_unset=True)
+    for k, v in updates.items():
+        existing[k] = v
+        
+    settings_file.write_text(json.dumps(existing, indent=2))
+            
+    get_settings.cache_clear()
+    new_settings = get_settings()
+    init_services(new_settings)
+    
+    return await get_app_config()

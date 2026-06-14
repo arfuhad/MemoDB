@@ -17,9 +17,11 @@ _PROMPT = (
 
 
 class TitleGenerator:
-    def __init__(self, model: str, base_url: str):
+    def __init__(self, provider: str, model: str, base_url: str, api_key: str = ""):
+        self.provider = provider
         self.model = model
         self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
 
     async def suggest(self, text: str) -> str:
         if not self.model:
@@ -27,18 +29,37 @@ class TitleGenerator:
         snippet = text.strip()[:600]
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.post(
-                    f"{self.base_url}/api/generate",
-                    json={
-                        "model": self.model,
-                        "prompt": _PROMPT.format(snippet=snippet),
-                        "stream": False,
-                        "options": {"temperature": 0.3, "num_predict": 32},
-                    },
-                )
-                resp.raise_for_status()
-                raw = resp.json().get("response", "").strip()
-        except Exception:
+                if self.provider == "api":
+                    headers = {}
+                    if self.api_key:
+                        headers["Authorization"] = f"Bearer {self.api_key}"
+                        
+                    resp = await client.post(
+                        self.base_url,
+                        headers=headers,
+                        json={
+                            "model": self.model,
+                            "messages": [{"role": "user", "content": _PROMPT.format(snippet=snippet)}],
+                            "temperature": 0.3,
+                            "max_tokens": 32,
+                        },
+                    )
+                    resp.raise_for_status()
+                    raw = resp.json()["choices"][0]["message"]["content"].strip()
+                else:
+                    resp = await client.post(
+                        f"{self.base_url}/api/generate",
+                        json={
+                            "model": self.model,
+                            "prompt": _PROMPT.format(snippet=snippet),
+                            "stream": False,
+                            "options": {"temperature": 0.3, "num_predict": 32},
+                        },
+                    )
+                    resp.raise_for_status()
+                    raw = resp.json().get("response", "").strip()
+        except Exception as e:
+            print(f"TitleGen error: {e}")
             return _fallback(text)
 
         title = _clean(raw)

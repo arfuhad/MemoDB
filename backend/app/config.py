@@ -25,13 +25,29 @@ class Settings(BaseSettings):
     api_embed_key: str = ""
     api_embed_model: str = "text-embedding-3-small"
 
-    # Title generation (uses Ollama generate API; empty string = heuristic fallback only)
+    # Title generation (empty title_model = heuristic fallback only)
+    title_provider: str = "ollama"      # "ollama" | "api"
     title_model: str = "gemma4:latest"
+    title_api_url: str = "https://openrouter.ai/api/v1/chat/completions"
+    title_api_key: str = ""
 
 
 @lru_cache
 def get_settings() -> Settings:
+    import json
     s = Settings()
     s.vault_dir = Path(s.vault_dir).expanduser()
     s.vault_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Load persisted overrides from vault_dir/settings.json
+    settings_file = s.vault_dir / "settings.json"
+    if settings_file.exists():
+        try:
+            overrides = json.loads(settings_file.read_text())
+            for k, v in overrides.items():
+                if hasattr(s, k) and v is not None:
+                    setattr(s, k, v)
+        except Exception as e:
+            print(f"Failed to load settings.json: {e}")
+            
     return s

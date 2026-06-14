@@ -95,6 +95,21 @@ class ApiClient {
       return false;
     }
   }
+  Future<BackendConfig> getConfig() async {
+    final resp = await _http.get(_u('/config'), headers: _headers);
+    _ensure(resp, 200);
+    return BackendConfig.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
+  }
+
+  Future<BackendConfig> updateConfig(BackendConfig config) async {
+    final resp = await _http.put(
+      _u('/config'),
+      headers: _headers,
+      body: jsonEncode(config.toJson()),
+    );
+    _ensure(resp, 200);
+    return BackendConfig.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
+  }
 
   void _ensure(http.Response resp, int expected) {
     if (resp.statusCode != expected) {
