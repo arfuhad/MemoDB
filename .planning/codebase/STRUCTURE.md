@@ -1,74 +1,73 @@
 # Directory Structure & Module Boundaries
 
-The project is divided into two top-level directories representing the main system boundaries: `app/` (the Flutter frontend) and `backend/` (the FastAPI Python backend).
+The repository is divided into two primary workspaces: `app/` for the mobile/desktop frontend and `backend/` for the API and logic engine.
 
-## `app/` - Flutter Frontend
+## Frontend (`app/`)
 
-The Flutter application follows a feature-driven architecture, separating core infrastructure from specific UI domains.
+The frontend is a Flutter application organized primarily by feature domain.
 
-```
-app/lib/
-├── main.dart                 # Application entry point
-├── app.dart                  # Root widget and app configuration
-│
-├── core/                     # Shared infrastructure and configuration
-│   ├── api_client.dart       # HTTPS REST client and Bearer token injection
-│   ├── config.dart           # App-wide configuration/environment variables
-│   ├── models.dart           # Shared Dart data models (JSON deserialization)
-│   ├── providers.dart        # Global state management providers
-│   └── theme.dart            # Centralized UI styling and theming
-│
-└── features/                 # Feature-sliced UI domains
-    ├── capture/              # Input screens for new thoughts/notes
-    │   └── capture_screen.dart
-    ├── document/             # Detailed view/editor for specific documents
-    │   └── document_screen.dart
-    ├── notes/                # General list/browsing views
-    │   └── notes_screen.dart
-    └── search/               # Hybrid semantic/FTS search interface
-        └── search_screen.dart
-```
-
-### Frontend Module Boundaries
-*   **Core:** Independent of any specific UI screen. It handles network coordination, global state, and system-wide styles.
-*   **Features:** Self-contained UI slices. Features communicate with the backend strictly through the `core/api_client.dart` and share state via `core/providers.dart`.
-
----
-
-## `backend/` - FastAPI Backend
-
-The Python backend is structured around a typical FastAPI layout, prioritizing the separation of API routing, business services, and database configuration.
-
-```
-backend/app/
-├── main.py                   # FastAPI application initialization & routing inclusion
-├── config.py                 # Pydantic BaseSettings and env config
-├── auth.py                   # Bearer token validation logic
-├── deps.py                   # FastAPI dependency injections (DB sessions, current user)
-├── db.py                     # SQLAlchemy setup and PostgreSQL connection logic
-│
-├── api/                      # Routing Layer
-│   └── routes.py             # REST API endpoints exposed to the Flutter app
-│
-├── models/                   # Data Layer definitions
-│   └── schemas.py            # Pydantic models for API request/response validation
-│
-└── services/                 # Business Logic Layer
-    ├── vault.py              # File I/O for the Markdown source-of-truth
-    ├── chunker.py            # Text splitting and markdown parsing for embeddings
-    ├── indexer.py            # Syncs vault files to the Postgres pgvector index
-    ├── retrieval.py          # Hybrid search logic (Vector Cosine/HNSW + Postgres FTS)
-    ├── title_gen.py          # Automatic title generation logic for untitled notes
-    │
-    └── embeddings/           # Embedding Model Integration
-        ├── base.py           # Abstract base class/interface for embedders
-        ├── factory.py        # Initializes the configured embedder (Local vs API)
-        ├── ollama.py         # Local Ollama integration (nomic-embed-text)
-        └── api.py            # Fallback cloud API integration (OpenAI/Voyage)
+```text
+app/
+├── lib/
+│   ├── app.dart              # Root application widget (MaterialApp configuration)
+│   ├── main.dart             # Entry point (runApp and ProviderScope)
+│   ├── core/                 # Shared domain models, API clients, and theme logic
+│   │   ├── api_client.dart   # Thin wrapper around HTTP calls to the backend
+│   │   ├── config.dart       # Environment and API base URL configurations
+│   │   ├── models.dart       # Dart implementations of backend schemas (Pydantic models)
+│   │   ├── providers.dart    # Shared Riverpod providers and state
+│   │   └── theme.dart        # Global styling and colors
+│   └── features/             # Feature-specific UI code
+│       ├── capture/          # Note/document creation
+│       ├── document/         # Document details and reading view
+│       ├── notes/            # List/grid view of saved notes
+│       ├── profile/          # User settings and API overrides (e.g., OpenRouter URL)
+│       └── search/           # Semantic search UI and results
+├── test/                     # Widget and unit tests
+├── macos/                    # Native build runners for macOS
+├── pubspec.yaml              # Flutter dependencies
+└── analysis_options.yaml     # Dart linting configuration
 ```
 
-### Backend Module Boundaries
-*   **Root Files:** Handle application lifecycle, global security (auth), and database connectivity.
-*   **API (`api/`):** Strictly responsible for HTTP request handling and response formatting. Must delegate complex operations to `services/`.
-*   **Services (`services/`):** The core of the system. `vault.py` strictly manages the file system invariant, while `indexer.py` handles the downstream sync to the database.
-*   **Embeddings Sub-module:** Encapsulates external AI models, exposing a uniform `base.py` interface to `indexer.py` and `retrieval.py` to prevent tight coupling to Ollama or OpenAI.
+## Backend (`backend/`)
+
+The backend is a FastAPI Python application adhering to a layered architectural pattern.
+
+```text
+backend/
+├── app/
+│   ├── main.py               # FastAPI application setup, lifecycle, and CORS configuration
+│   ├── config.py             # Pydantic BaseSettings for environment variables (OpenRouter, URLs)
+│   ├── db.py                 # PostgreSQL connection pooling and pgvector integration
+│   ├── deps.py               # FastAPI dependency injection definitions
+│   ├── auth.py               # Token verification middleware
+│   ├── api/                  # API routing layer
+│   │   └── routes.py         # REST endpoints mapping to backend services
+│   ├── models/               # Data definitions
+│   │   └── schemas.py        # Pydantic schemas for request/response validation
+│   └── services/             # Core business logic
+│       ├── chunker.py        # Text segmentation for semantic search
+│       ├── indexer.py        # Pipeline orchestrator for inserting vector data
+│       ├── retrieval.py      # Semantic similarity and search query construction
+│       ├── title_gen.py      # Title extraction logic via LLMs (configured for OpenRouter)
+│       ├── vault.py          # File persistence and storage logic
+│       └── embeddings/       # Embeddings factory pattern
+│           ├── api.py        # Remote API fallback logic
+│           ├── base.py       # Abstract base classes for embedders
+│           ├── factory.py    # Embedder instantiation based on settings
+│           └── ollama.py     # Local Ollama embedding integration
+├── migrations/               # PostgreSQL schema migrations
+│   └── 001_init.sql          # Initial database schema and pgvector setup
+├── scripts/                  # Utilities
+│   └── seed.py               # Database seeding and test fixture generators
+├── tests/                    # Pytest suite testing services and routing
+├── pyproject.toml            # Python dependencies and build system
+└── Dockerfile                # Production container build script
+```
+
+## Module Boundaries
+
+1. **Flutter vs FastAPI**: Complete decoupling. The Flutter app has no direct database access and interacts strictly over REST API calls authenticated via bearer tokens.
+2. **Features (Flutter)**: Isolated by directory under `lib/features/`. Each feature handles its own UI components, delegating cross-cutting concerns (like state and networking) to `lib/core/`.
+3. **Services (FastAPI)**: Business logic is decoupled from HTTP transport. `api/routes.py` manages requests and delegates execution to `services/` (e.g., `title_gen.py` handling OpenRouter prompts or `embeddings/factory.py` abstracting the choice of vectorization).
+4. **Data Isolation (FastAPI)**: Schema definitions (`models/schemas.py`) define API contracts independently of the database driver functions in `db.py` and `migrations/`.

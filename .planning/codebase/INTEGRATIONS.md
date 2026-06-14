@@ -1,28 +1,26 @@
 # Integrations
 
-This document details the databases, third-party APIs, and external services integrated into the PKM system.
-
 ## Databases
+- **PostgreSQL**: The primary relational database, deployed via Docker (`pgvector/pgvector:pg16`).
+- **pgvector**: A PostgreSQL extension used to store vector embeddings (768 dimensions for `nomic-embed-text` compatibility) and perform semantic similarity searches.
 
-### PostgreSQL + pgvector
-- **Engine:** PostgreSQL 16
-- **Extension:** `pgvector`
-- **Purpose:** Primary database for storing PKM data and vector embeddings for semantic retrieval.
-- **Docker Image:** `pgvector/pgvector:pg16`
-- **Volume:** `pkm_pgdata`
-- **Connection:** Accessed asynchronously from the backend using the `asyncpg` driver via `PKM_DATABASE_URL`.
+## File System
+- **Vault Directory**: The application interacts directly with a local file system directory (configured via `PKM_VAULT_DIR`, defaults to `./vault`) to persist and retrieve Markdown notes. Configuration overrides can also be loaded from a `settings.json` file stored within this vault.
 
-## AI / ML Services
+## AI & Third-Party APIs
 
-### Ollama (Embeddings)
-- **Service:** Ollama
-- **Model:** `nomic-embed-text` (Dimensions: 768)
-- **Purpose:** Used by the backend to generate text embeddings for semantic search capabilities.
-- **Deployment:** Intended to run directly on the host machine (e.g., leveraging Mac GPU/Metal via `host.docker.internal:11434`) rather than being containerized.
-- **Configuration:** Managed via `PKM_EMBEDDER`, `PKM_OLLAMA_URL`, `PKM_EMBED_MODEL`, and `PKM_EMBED_DIM` environment variables.
+The backend integrates with both local and external AI services for semantic processing, controlled by the `config.py` settings.
 
-## File System Integration
+### 1. Local AI Service
+- **Ollama**:
+  - **Purpose**: Local processing for both embeddings and title generation to ensure privacy and avoid API costs.
+  - **Integration**: Communicates over HTTP (default `http://localhost:11434` or `host.docker.internal:11434`).
+  - **Models**: Configured to use `nomic-embed-text` for vectorization and `gemma4:latest` for text generation.
 
-### Vault Directory
-- **Purpose:** A dedicated file system directory configured for storing or processing raw PKM data/files.
-- **Configuration:** Mounted into the backend container at `/data/vault` and controlled via the `PKM_VAULT_DIR` environment variable.
+### 2. External AI APIs
+- **OpenRouter**:
+  - **Purpose**: Used for text generation tasks (specifically title generation) when configured to use the `"api"` provider fallback instead of `"ollama"`.
+  - **Integration**: Pointed to `https://openrouter.ai/api/v1/chat/completions`. Requires an API key (`PKM_TITLE_API_KEY`).
+- **OpenAI (or Compatible APIs)**:
+  - **Purpose**: Used for generating text embeddings when the embedder provider is set to `"api"`.
+  - **Integration**: Defaults to `https://api.openai.com/v1/embeddings` using the `text-embedding-3-small` model. Requires an API key (`PKM_API_EMBED_KEY`).

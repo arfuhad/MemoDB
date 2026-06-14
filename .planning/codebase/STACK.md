@@ -1,29 +1,34 @@
 # Stack
 
-This document outlines the primary languages, frameworks, libraries, and tools used in the PKM system.
-
-## Frontend (App)
-The frontend is a multi-platform client (desktop + mobile) built with Flutter.
-
-- **Language:** Dart (`>=3.4.0`)
-- **Framework:** Flutter
-- **State Management:** Riverpod (`flutter_riverpod ^2.5.1`)
-- **Networking:** `http (^1.2.0)`
-- **Localization/Formatting:** `intl (^0.19.0)`
-- **Testing & Linting:** `flutter_test`, `flutter_lints`
+## Client App (Frontend)
+- **Language**: Dart (SDK >=3.4.0 <4.0.0)
+- **Framework**: Flutter
+- **State Management**: Riverpod (`flutter_riverpod`)
+- **Key Libraries**:
+  - `http` for API communication
+  - `intl` for localization
 
 ## Backend
-The backend is a high-performance semantic capture and retrieval API.
-
-- **Language:** Python (`>=3.11`)
-- **Framework:** FastAPI (`>=0.111`)
-- **Server:** Uvicorn (`>=0.30` with `standard` extras)
-- **Data Validation & Settings:** Pydantic (`>=2.7`), Pydantic Settings (`>=2.3`)
-- **Database Driver:** `asyncpg` (`>=0.29`)
-- **HTTP Client:** `httpx` (`>=0.27`)
-- **Markdown & Metadata parsing:** `python-frontmatter` (`>=1.1`), `pyyaml` (`>=6.0`)
-- **Testing:** `pytest` (`>=8.2`), `pytest-asyncio` (`>=0.23`)
+- **Language**: Python >= 3.11
+- **Framework**: FastAPI (run via Uvicorn)
+- **Core Libraries**:
+  - `asyncpg` for asynchronous PostgreSQL database interaction
+  - `pydantic` and `pydantic-settings` for data validation and configuration management
+  - `httpx` for making outgoing HTTP requests (e.g., to AI services)
+  - `python-frontmatter` and `pyyaml` for parsing Markdown and YAML
+  - `pytest` and `pytest-asyncio` for testing
 
 ## Infrastructure & DevOps
-- **Containerization:** Docker (`python:3.11-slim` base image for the backend).
-- **Orchestration:** Docker Compose is used for local development and coordinating the backend API with the database.
+- **Containerization**: Docker and Docker Compose
+- **Database Server**: PostgreSQL 16 with `pgvector` extension (`pgvector/pgvector:pg16`)
+
+## AI and Models Stack (Ollama vs OpenRouter/API)
+The application leverages dual configurations for AI-driven tasks (embeddings and title generation):
+- **Ollama (Default & Local)**:
+  - Designed to run on the host machine to leverage hardware acceleration (e.g., Mac GPU/Metal).
+  - Backend accesses it via `host.docker.internal:11434`.
+  - Uses `nomic-embed-text` for embeddings (768 dimensions).
+  - Uses `gemma4:latest` for semantic title generation.
+- **OpenRouter & API (Fallback/External)**:
+  - OpenRouter is the default target for external API-based title generation (`https://openrouter.ai/api/v1/chat/completions`).
+  - Standard OpenAI-compatible endpoints are supported for embeddings fallback (defaulting to `text-embedding-3-small`).
