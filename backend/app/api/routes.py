@@ -176,6 +176,11 @@ async def rebuild() -> RebuildResponse:
     return RebuildResponse(documents_indexed=docs, chunks_embedded=embedded)
 
 
+def _mask(key: str) -> str:
+    """Return *** if key is set, empty string if not — never return the raw secret."""
+    return "***" if key else ""
+
+
 @api.get("/config", response_model=AppConfig)
 async def get_app_config() -> AppConfig:
     s = get_settings()
@@ -183,10 +188,10 @@ async def get_app_config() -> AppConfig:
         title_provider=s.title_provider,
         title_model=s.title_model,
         title_api_url=s.title_api_url,
-        title_api_key=s.title_api_key,
+        title_api_key=_mask(s.title_api_key),
         embedder=s.embedder,
         api_embed_url=s.api_embed_url,
-        api_embed_key=s.api_embed_key,
+        api_embed_key=_mask(s.api_embed_key),
         api_embed_model=s.api_embed_model,
         ollama_url=s.ollama_url,
     )
@@ -212,6 +217,9 @@ async def update_app_config(req: AppConfigUpdate) -> AppConfig:
             
     updates = req.model_dump(exclude_unset=True)
     for k, v in updates.items():
+        # Never overwrite a real key with the masked placeholder "***"
+        if v == "***":
+            continue
         existing[k] = v
         
     settings_file.write_text(json.dumps(existing, indent=2))

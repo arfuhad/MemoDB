@@ -33,6 +33,7 @@ class _NoteModalState extends ConsumerState<_NoteModal> {
   bool _saving = false;
   bool _confirmDelete = false;
   bool _deleting = false;
+  bool _generating = false;
   bool _initialized = false;
 
   final _titleController = TextEditingController();
@@ -54,6 +55,20 @@ class _NoteModalState extends ConsumerState<_NoteModal> {
     _bodyController.text = doc.bodyText;
     _tags = List.from(doc.tags);
     _initialized = true;
+  }
+
+  Future<void> _generateTitle() async {
+    final text = _bodyController.text.trim();
+    if (text.isEmpty || _generating) return;
+    setState(() => _generating = true);
+    try {
+      final title = await ref.read(apiClientProvider).suggestTitle(text);
+      if (mounted) _titleController.text = title;
+    } catch (_) {
+      // silently ignore — user can still edit title manually
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
   }
 
   void _addTag([String? raw]) {
@@ -173,6 +188,8 @@ class _NoteModalState extends ConsumerState<_NoteModal> {
                           tagController: _tagController,
                           tags: _tags,
                           saving: _saving,
+                          generating: _generating,
+                          onGenerateTitle: _generateTitle,
                           onAddTag: _addTag,
                           onTagChanged: _onTagChanged,
                           onRemoveTag: (i) => setState(() => _tags.removeAt(i)),
@@ -317,6 +334,8 @@ class _EditShell extends StatelessWidget {
   final TextEditingController tagController;
   final List<String> tags;
   final bool saving;
+  final bool generating;
+  final VoidCallback onGenerateTitle;
   final void Function([String?]) onAddTag;
   final void Function(String) onTagChanged;
   final void Function(int) onRemoveTag;
@@ -332,6 +351,8 @@ class _EditShell extends StatelessWidget {
     required this.tagController,
     required this.tags,
     required this.saving,
+    required this.generating,
+    required this.onGenerateTitle,
     required this.onAddTag,
     required this.onTagChanged,
     required this.onRemoveTag,
@@ -371,17 +392,26 @@ class _EditShell extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
-                  controller: titleController,
-                  style: const TextStyle(
-                      fontSize: 24.0, fontWeight: FontWeight.w700, letterSpacing: -0.8, color: Mg.ink),
-                  decoration: const InputDecoration(
-                    hintText: 'Note title…',
-                    hintStyle: TextStyle(color: Mg.muted3),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    isDense: true,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: titleController,
+                        style: const TextStyle(
+                            fontSize: 24.0, fontWeight: FontWeight.w700, letterSpacing: -0.8, color: Mg.ink),
+                        decoration: const InputDecoration(
+                          hintText: 'Note title…',
+                          hintStyle: TextStyle(color: Mg.muted3),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _GenerateBtn(loading: generating, onTap: onGenerateTitle),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -510,6 +540,42 @@ class _HeaderBtn extends StatelessWidget {
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                       color: fg)),
+        ),
+      ),
+    );
+  }
+}
+
+class _GenerateBtn extends StatelessWidget {
+  final bool loading;
+  final VoidCallback onTap;
+  const _GenerateBtn({required this.loading, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: loading ? null : onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: Mg.blueTint,
+            border: Border.all(color: Mg.blueHi),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: loading
+              ? const SizedBox(
+                  width: 12, height: 12,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation(Mg.blue)),
+                )
+              : const Text('✦ Generate',
+                  style: TextStyle(
+                      fontSize: 11.5, fontWeight: FontWeight.w600, color: Mg.blue)),
         ),
       ),
     );
